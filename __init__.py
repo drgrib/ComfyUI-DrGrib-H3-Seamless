@@ -107,12 +107,51 @@ class DrGrib_H3SeamlessContinuation:
 
         return (out, "DrGrib Seamless Continuation Applied")
 
+class DrGrib_TrimAV:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "images": ("IMAGE",),
+                "trim_frames": ("INT", {"default": 39, "min": 0, "max": 1000, "step": 1}),
+                "fps": ("FLOAT", {"default": 24.0, "min": 1.0, "max": 120.0, "step": 1.0}),
+            },
+            "optional": {
+                "audio": ("AUDIO",),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE", "AUDIO")
+    FUNCTION = "trim"
+    CATEGORY = "DrGrib/Video"
+
+    def trim(self, images, trim_frames, fps, audio=None):
+        out_images = images
+        if trim_frames > 0 and len(images) > trim_frames:
+            out_images = images[trim_frames:]
+
+        out_audio = audio
+        if audio is not None and trim_frames > 0:
+            trim_time = trim_frames / fps
+            sample_rate = audio.get("sample_rate", 44100)
+            waveform = audio.get("waveform")
+            if waveform is not None:
+                trim_samples = int(trim_time * sample_rate)
+                if waveform.shape[-1] > trim_samples:
+                    new_waveform = waveform[..., trim_samples:]
+                    out_audio = {"waveform": new_waveform, "sample_rate": sample_rate}
+
+        return (out_images, out_audio)
+
+
 NODE_CLASS_MAPPINGS = {
     "DrGrib_H3LoadLatentAbsolute": DrGrib_H3LoadLatentAbsolute,
     "DrGrib_H3SeamlessContinuation": DrGrib_H3SeamlessContinuation,
+    "DrGrib_TrimAV": DrGrib_TrimAV,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "DrGrib_H3LoadLatentAbsolute": "DrGrib H3 Load Latent (Absolute Path)",
     "DrGrib_H3SeamlessContinuation": "DrGrib H3 Seamless Continuation (Feathered)",
+    "DrGrib_TrimAV": "DrGrib Trim AV Output",
 }
